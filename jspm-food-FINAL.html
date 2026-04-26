@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSPM RSCOE | Campus Food Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<!-- ═══ FIREBASE SDK ═══ -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+<style>
+:root{
+  --navy:#0f1b3d;--navy2:#1a2d5a;--orange:#ff6b2b;--orange2:#ff8c5a;
+  --gold:#f5c518;--bg:#f4f2ee;--bg2:#eae7e1;--card:#ffffff;
+  --text:#1a1a2e;--muted:#6b7280;--green:#16a34a;--red:#dc2626;
+  --purple:#7c3aed;--radius:18px;--radius-sm:10px;
+  --shadow:0 4px 24px rgba(15,27,61,0.10);--shadow-lg:0 12px 48px rgba(15,27,61,0.18);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+h1,h2,h3,h4{font-family:'Syne',sans-serif}
+.screen{display:none;min-height:100vh;flex-direction:column;animation:fadeIn 0.3s ease}
+.screen.active{display:flex}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* FIREBASE SETUP BANNER */
+.setup-banner{background:linear-gradient(135deg,#fef3c7,#fde68a);border:2px solid #f59e0b;border-radius:var(--radius);padding:16px 20px;margin:20px;display:none}
+.setup-banner.show{display:block}
+.setup-banner h4{color:#92400e;font-size:15px;font-weight:800;margin-bottom:6px}
+.setup-banner p{color:#78350f;font-size:13px;line-height:1.6}
+.setup-banner code{background:#fff;padding:2px 6px;border-radius:4px;font-size:12px;font-family:monospace;color:#92400e}
+
+/* FIREBASE STATUS */
+.fb-status{position:fixed;top:10px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;padding:8px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:9999;display:none;box-shadow:var(--shadow)}
+.fb-status.error{background:var(--red)}
+.fb-status.show{display:block;animation:fadeIn 0.3s ease}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);background:var(--navy);color:#fff;padding:14px 28px;border-radius:40px;font-size:15px;font-weight:600;z-index:9999;opacity:0;transition:all 0.3s;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center;box-shadow:var(--shadow-lg)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* NOTIFICATION RING */
+.notif-ring{position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:9998;border:4px solid var(--orange);border-radius:0;opacity:0;transition:opacity 0.3s}
+.notif-ring.show{animation:ringPulse 0.8s ease 2}
+@keyframes ringPulse{0%,100%{opacity:0}50%{opacity:1}}
+
+/* OVERLAY */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:500;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(3px)}
+.overlay.open{display:flex}
+.modal{background:var(--card);border-radius:28px 28px 0 0;padding:32px 24px 40px;width:100%;max-width:480px;animation:slideUp 0.35s cubic-bezier(0.34,1.56,0.64,1)}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+
+/* LANDING */
+#screen-landing{background:var(--navy);position:relative;overflow:hidden;justify-content:center;align-items:center;padding:40px 24px}
+.landing-bg::before{content:'';position:absolute;top:-100px;right:-100px;width:400px;height:400px;background:radial-gradient(circle,rgba(255,107,43,0.25) 0%,transparent 70%)}
+.landing-bg::after{content:'';position:absolute;bottom:-80px;left:-80px;width:300px;height:300px;background:radial-gradient(circle,rgba(245,197,24,0.12) 0%,transparent 70%)}
+.landing-badge{background:rgba(255,107,43,0.2);border:1px solid rgba(255,107,43,0.4);color:var(--orange2);padding:6px 16px;border-radius:20px;font-size:13px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:16px}
+.landing-title{font-size:clamp(32px,8vw,52px);font-weight:800;color:#fff;text-align:center;line-height:1.1;margin-bottom:8px}
+.landing-title span{color:var(--orange)}
+.landing-sub{font-size:16px;color:rgba(255,255,255,0.6);text-align:center;margin-bottom:48px;max-width:320px}
+.role-cards{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;position:relative;z-index:1}
+.role-card{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:var(--radius);padding:20px 24px;cursor:pointer;display:flex;align-items:center;gap:16px;transition:all 0.2s;backdrop-filter:blur(10px)}
+.role-card:active{background:rgba(255,107,43,0.15);border-color:rgba(255,107,43,0.4)}
+.role-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
+.role-icon.student{background:linear-gradient(135deg,#ff6b2b,#ff8c5a)}
+.role-icon.shop{background:linear-gradient(135deg,#16a34a,#22c55e)}
+.role-icon.cafe{background:linear-gradient(135deg,#7c3aed,#a78bfa)}
+.role-info h3{color:#fff;font-size:18px;font-weight:700}
+.role-info p{color:rgba(255,255,255,0.5);font-size:13px;margin-top:2px}
+.role-arrow{margin-left:auto;color:rgba(255,255,255,0.3);font-size:20px}
+.landing-footer{color:rgba(255,255,255,0.25);font-size:12px;margin-top:32px;text-align:center;position:relative;z-index:1}
+
+/* FIREBASE INDICATOR on LANDING */
+.fb-indicator{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.08);border-radius:20px;padding:8px 16px;margin-bottom:20px;position:relative;z-index:1}
+.fb-dot{width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0;transition:background 0.3s}
+.fb-dot.connected{background:var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.4}}
+.fb-indicator span{color:rgba(255,255,255,0.6);font-size:13px}
+
+/* COMMON */
+.top-bar{background:var(--navy);padding:16px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 2px 20px rgba(0,0,0,0.2)}
+.back-btn{background:rgba(255,255,255,0.1);border:none;color:#fff;width:38px;height:38px;border-radius:10px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.top-bar-title{color:#fff;font-size:18px;font-weight:700}
+.top-bar-sub{color:rgba(255,255,255,0.5);font-size:12px;margin-top:1px}
+.login-hero{background:var(--navy);padding:40px 24px 48px;position:relative;overflow:hidden}
+.login-hero::after{content:'🎓';position:absolute;right:-10px;bottom:-20px;font-size:120px;opacity:0.08}
+.login-hero h2{color:#fff;font-size:28px;font-weight:800}
+.login-hero p{color:rgba(255,255,255,0.6);font-size:15px;margin-top:6px}
+.login-form{padding:28px 20px;flex:1}
+.form-group{margin-bottom:20px}
+.form-group label{display:block;font-size:13px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.04em}
+.form-group input,.form-group select{width:100%;padding:16px;border:2px solid #e5e0d8;border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:17px;background:#fff;color:var(--text);outline:none;transition:border-color 0.2s}
+.form-group input:focus,.form-group select:focus{border-color:var(--orange)}
+.btn-primary{width:100%;background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;border:none;border-radius:var(--radius-sm);padding:18px;font-family:'Syne',sans-serif;font-size:18px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(255,107,43,0.35);transition:transform 0.15s}
+.btn-primary:active{transform:scale(0.98)}
+.btn-secondary{width:100%;background:var(--bg2);color:var(--text);border:none;border-radius:var(--radius-sm);padding:18px;font-family:'Syne',sans-serif;font-size:18px;font-weight:700;cursor:pointer;margin-top:12px}
+
+/* AREA */
+.area-cards{padding:24px 20px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.area-card{background:var(--card);border-radius:var(--radius);padding:24px 16px;cursor:pointer;text-align:center;box-shadow:var(--shadow);transition:all 0.2s;border:2px solid transparent}
+.area-card:active{transform:scale(0.97)}
+.area-emoji{font-size:44px;margin-bottom:10px}
+.area-card h3{font-size:17px;font-weight:800}
+.area-card p{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.4}
+.area-tag{display:inline-block;background:var(--orange);color:#fff;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;margin-top:10px}
+.area-tag.cafe{background:var(--purple)}
+
+/* SHOP LIST */
+.shop-grid{padding:20px;display:flex;flex-direction:column;gap:14px;padding-bottom:40px}
+.shop-card{background:var(--card);border-radius:var(--radius);padding:20px;cursor:pointer;box-shadow:var(--shadow);display:flex;align-items:center;gap:16px;transition:all 0.2s}
+.shop-card:active{transform:scale(0.98)}
+.shop-emoji-box{width:60px;height:60px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0}
+.shop-info h3{font-size:17px;font-weight:700}
+.shop-info p{font-size:13px;color:var(--muted);margin-top:4px}
+.shop-badge{display:inline-block;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;margin-top:6px}
+.shop-arrow{margin-left:auto;font-size:22px;color:var(--muted)}
+
+/* MENU */
+.menu-grid{padding:16px 20px;display:flex;flex-direction:column;gap:12px;padding-bottom:100px}
+.menu-item{background:var(--card);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);display:flex;align-items:center;gap:14px}
+.menu-item-emoji{font-size:34px;flex-shrink:0}
+.menu-item-info{flex:1}
+.menu-item-name{font-size:17px;font-weight:700}
+.menu-item-desc{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.4}
+.menu-item-price{font-size:20px;font-weight:800;color:var(--orange);margin-top:6px}
+.btn-order{background:var(--navy);color:#fff;border:none;border-radius:10px;padding:10px 18px;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background 0.2s}
+.btn-order:hover{background:var(--orange)}
+
+/* PAYMENT */
+.payment-screen{padding:24px 20px;flex:1;padding-bottom:40px}
+.order-summary{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);margin-bottom:20px}
+.order-summary h3{font-size:18px;font-weight:800;margin-bottom:16px;color:var(--navy)}
+.order-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bg2);font-size:15px}
+.order-row.total{border:none;font-weight:700;font-size:18px;color:var(--orange)}
+.qr-box{background:var(--card);border-radius:var(--radius);padding:28px 20px;box-shadow:var(--shadow);text-align:center;margin-bottom:20px}
+.qr-box h3{font-size:18px;font-weight:800;color:var(--navy);margin-bottom:6px}
+.qr-box p{font-size:13px;color:var(--muted);margin-bottom:20px}
+.qr-img{width:200px;height:200px;border:3px solid var(--bg2);border-radius:16px;margin:0 auto 16px;display:block}
+.upi-id-box{background:var(--bg2);border-radius:10px;padding:10px 16px;font-size:15px;font-weight:700;color:var(--navy);display:inline-block;margin-bottom:6px}
+.btn-paid{width:100%;background:linear-gradient(135deg,var(--green),#22c55e);color:#fff;border:none;border-radius:var(--radius-sm);padding:18px;font-family:'Syne',sans-serif;font-size:18px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(22,163,74,0.3)}
+.btn-paid:disabled{opacity:0.6;cursor:not-allowed}
+
+/* ORDER CODE */
+.code-screen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center;background:var(--bg)}
+.code-success-icon{font-size:80px;margin-bottom:20px;animation:pop 0.5s cubic-bezier(0.34,1.56,0.64,1)}
+@keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+.code-screen h2{font-size:28px;font-weight:800;color:var(--navy);margin-bottom:8px}
+.code-screen p{color:var(--muted);font-size:15px;margin-bottom:28px;max-width:280px}
+.order-code-display{background:var(--navy);border-radius:var(--radius);padding:28px 40px;margin-bottom:16px;position:relative;overflow:hidden;min-width:280px}
+.order-code-display::before{content:'';position:absolute;top:-30px;right:-30px;width:100px;height:100px;background:rgba(255,107,43,0.2);border-radius:50%}
+.code-label{color:rgba(255,255,255,0.5);font-size:12px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px}
+.code-value{color:#fff;font-size:48px;font-weight:800;letter-spacing:0.2em;font-family:'Syne',sans-serif}
+.code-shop{color:rgba(255,255,255,0.5);font-size:13px;margin-top:8px}
+.code-note{background:#fff;border-radius:var(--radius-sm);padding:16px;font-size:14px;color:var(--muted);margin-top:12px;max-width:320px;line-height:1.6;box-shadow:var(--shadow)}
+.firebase-badge{background:#fff3e0;border:1px solid #ff9800;border-radius:10px;padding:10px 16px;font-size:13px;color:#e65100;margin-top:12px;max-width:320px}
+.btn-done{background:var(--orange);color:#fff;border:none;border-radius:var(--radius-sm);padding:16px 40px;font-family:'Syne',sans-serif;font-size:17px;font-weight:700;cursor:pointer;margin-top:20px}
+
+/* SHOPKEEPER DASHBOARD */
+.shop-top{padding:16px 20px;display:flex;align-items:center;gap:10px}
+.verify-section{background:var(--card);border-radius:var(--radius);padding:18px 20px;margin:0 20px 4px;box-shadow:var(--shadow);border:2px solid var(--bg2)}
+.verify-section h3{font-size:15px;font-weight:800;margin-bottom:12px;color:var(--navy)}
+.verify-row{display:flex;gap:10px}
+.verify-input{flex:1;padding:14px 16px;border:2px solid var(--bg2);border-radius:var(--radius-sm);font-family:'Syne',sans-serif;font-size:22px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;outline:none;text-align:center;background:var(--bg2);transition:border-color 0.2s}
+.verify-input:focus{border-color:var(--orange);background:#fff}
+.btn-verify{background:var(--navy);color:#fff;border:none;border-radius:var(--radius-sm);padding:14px 20px;font-family:'Syne',sans-serif;font-size:16px;font-weight:700;cursor:pointer;white-space:nowrap}
+.tab-bar{display:flex;background:var(--bg2);margin:12px 20px;border-radius:var(--radius-sm);padding:4px;gap:4px}
+.tab-btn{flex:1;padding:10px 4px;border:none;background:none;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px;color:var(--muted);transition:all 0.2s;white-space:nowrap}
+.tab-btn.active{background:var(--card);color:var(--navy);box-shadow:0 2px 8px rgba(0,0,0,0.08)}
+.orders-list{padding:0 20px;flex:1;overflow-y:auto;padding-bottom:40px}
+.orders-empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.orders-empty .empty-icon{font-size:64px;margin-bottom:16px}
+
+/* ORDER CARDS */
+.order-card{background:var(--card);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);margin-bottom:14px;border-left:5px solid var(--orange);position:relative;overflow:hidden}
+.order-card.new-order{animation:newPulse 0.6s ease}
+@keyframes newPulse{0%{transform:scale(0.95);opacity:0}100%{transform:scale(1);opacity:1}}
+.order-card.preparing{border-left-color:#3b82f6}
+.order-card.verified{border-left-color:var(--green);opacity:0.7}
+.order-card.cafeteria{border-left-color:var(--purple)}
+.order-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.order-item-name{font-size:18px;font-weight:800;font-family:'Syne',sans-serif}
+.order-student{font-size:13px;color:var(--muted);margin-top:3px}
+.order-time-text{font-size:12px;color:var(--muted);margin-top:2px}
+.order-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.order-price-badge{background:var(--orange);color:#fff;padding:4px 12px;border-radius:10px;font-size:14px;font-weight:700}
+.status-chip{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700}
+.status-chip.pending{background:#fef3c7;color:#92400e}
+.status-chip.preparing{background:#dbeafe;color:#1e40af}
+.status-chip.verified{background:#d1fae5;color:#065f46}
+.order-code-row{display:flex;align-items:center;gap:10px;background:var(--bg2);padding:10px 14px;border-radius:var(--radius-sm);margin-top:10px;flex-wrap:wrap}
+.order-code-big{font-size:22px;font-weight:800;letter-spacing:0.15em;color:var(--navy);font-family:'Syne',sans-serif}
+.action-btns{display:flex;gap:8px;margin-left:auto}
+.btn-cook{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer}
+.btn-cook.cafe{background:var(--purple)}
+
+/* NOTIF BADGE */
+.notif-badge{background:var(--red);color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;margin-left:5px;vertical-align:middle;animation:blink 1s infinite}
+
+/* VERIFIED POP */
+.verified-pop{position:fixed;inset:0;background:rgba(22,163,74,0.96);z-index:9999;display:none;flex-direction:column;align-items:center;justify-content:center;cursor:pointer}
+.verified-pop.show{display:flex;animation:fadeIn 0.3s ease}
+.verified-pop-icon{font-size:100px;animation:pop 0.5s cubic-bezier(0.34,1.56,0.64,1)}
+.verified-pop h2{color:#fff;font-size:36px;font-weight:800;margin-top:16px;font-family:'Syne',sans-serif}
+.verified-pop p{color:rgba(255,255,255,0.85);font-size:18px;margin-top:8px;text-align:center;padding:0 24px}
+.verified-pop small{color:rgba(255,255,255,0.5);font-size:13px;margin-top:20px}
+
+/* SPINNER */
+.spinner{display:inline-block;width:20px;height:20px;border:3px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* LIVE INDICATOR */
+.live-dot{display:inline-flex;align-items:center;gap:6px;background:rgba(22,163,74,0.15);padding:4px 10px;border-radius:20px;font-size:12px;color:var(--green);font-weight:700}
+.live-dot::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1s infinite}
+</style>
+</head>
+<body>
+
+<!-- UI ELEMENTS -->
+<div class="toast" id="toast"></div>
+<div class="notif-ring" id="notifRing"></div>
+<div class="fb-status" id="fbStatus"></div>
+
+<!-- VERIFIED POPUP -->
+<div class="verified-pop" id="verifiedPop" onclick="this.classList.remove('show')">
+  <div class="verified-pop-icon">✅</div>
+  <h2>Order Verified!</h2>
+  <p id="verifiedPopDetail">Student can collect food</p>
+  <small>Tap anywhere to dismiss</small>
+</div>
+
+<!-- ORDER ITEM MODAL -->
+<div class="overlay" id="itemModal">
+  <div class="modal">
+    <h3 style="font-size:22px;margin-bottom:6px" id="modalItemName">Item</h3>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:20px" id="modalItemDesc">Description</p>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+      <span style="font-size:30px;font-weight:800;color:var(--orange)" id="modalItemPrice">₹0</span>
+      <span style="background:var(--bg2);padding:6px 14px;border-radius:10px;font-size:14px;color:var(--muted)" id="modalItemShop">Shop</span>
+    </div>
+    <button class="btn-primary" onclick="proceedToPayment()">Proceed to Pay →</button>
+    <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+  </div>
+</div>
+
+<!-- ═══ SCREEN: LANDING ═══ -->
+<div class="screen active" id="screen-landing">
+  <div class="landing-bg"></div>
+  <div style="text-align:center;position:relative;z-index:1;margin-bottom:24px">
+    <div style="font-size:56px;margin-bottom:12px">🎓</div>
+    <div class="landing-badge">JSPM RSCOE Pune</div>
+    <h1 class="landing-title">Campus<br><span>Food</span> Portal</h1>
+    <p class="landing-sub">Order ahead · Skip the queue · Eat on time</p>
+  </div>
+  <div class="fb-indicator" id="fbIndicator">
+    <div class="fb-dot" id="fbDot"></div>
+    <span id="fbIndicatorText">Connecting to server...</span>
+  </div>
+  <div class="role-cards">
+    <div class="role-card" onclick="showScreen('screen-student-login')">
+      <div class="role-icon student">👨‍🎓</div>
+      <div class="role-info"><h3>I'm a Student</h3><p>Order from Food Court & Cafeteria</p></div>
+      <span class="role-arrow">›</span>
+    </div>
+    <div class="role-card" onclick="showScreen('screen-shop-login')">
+      <div class="role-icon shop">🏪</div>
+      <div class="role-info"><h3>Food Court Shop</h3><p>View live orders in real-time</p></div>
+      <span class="role-arrow">›</span>
+    </div>
+    <div class="role-card" onclick="showScreen('screen-cafe-login')">
+      <div class="role-icon cafe">🍽️</div>
+      <div class="role-info"><h3>Cafeteria Chief</h3><p>Manage cafeteria orders live</p></div>
+      <span class="role-arrow">›</span>
+    </div>
+  </div>
+  <div class="landing-footer">JSPM Rajarshi Shahu College of Engineering · Pune<br>© 2025 Campus Food Portal · Powered by Firebase</div>
+</div>
+
+<!-- ═══ SCREEN: FIREBASE SETUP ═══ -->
+<div class="screen" id="screen-firebase-setup">
+  <div style="background:var(--navy);padding:40px 24px 32px">
+    <div style="font-size:48px;margin-bottom:12px">🔥</div>
+    <h2 style="color:#fff;font-size:28px;font-weight:800">Firebase Setup</h2>
+    <p style="color:rgba(255,255,255,0.6);font-size:15px;margin-top:6px">Connect your real-time database — takes 5 minutes</p>
+  </div>
+  <div style="padding:24px 20px;flex:1;overflow-y:auto">
+    <div style="background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);margin-bottom:16px">
+      <h3 style="font-size:16px;font-weight:800;margin-bottom:16px;color:var(--navy)">📋 Step-by-step Instructions</h3>
+      <div style="font-size:14px;line-height:2;color:var(--muted)">
+        <b style="color:var(--navy)">1.</b> Go to <b>console.firebase.google.com</b><br>
+        <b style="color:var(--navy)">2.</b> Click <b>"Add Project"</b> → Name it <b>jspm-food</b><br>
+        <b style="color:var(--navy)">3.</b> Disable Google Analytics → Create<br>
+        <b style="color:var(--navy)">4.</b> Click <b>"Web" icon</b> (&lt;/&gt;) → Register app<br>
+        <b style="color:var(--navy)">5.</b> Copy the <b>firebaseConfig</b> object<br>
+        <b style="color:var(--navy)">6.</b> Go to <b>Realtime Database</b> → Create → <b>Test mode</b><br>
+        <b style="color:var(--navy)">7.</b> Paste your config below 👇
+      </div>
+    </div>
+    <div style="background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)">
+      <h3 style="font-size:16px;font-weight:800;margin-bottom:16px;color:var(--navy)">🔑 Paste Firebase Config</h3>
+      <div class="form-group"><label>API Key</label><input type="text" id="cfg-apiKey" placeholder="AIzaSy..."></div>
+      <div class="form-group"><label>Auth Domain</label><input type="text" id="cfg-authDomain" placeholder="jspm-food.firebaseapp.com"></div>
+      <div class="form-group"><label>Database URL</label><input type="text" id="cfg-databaseURL" placeholder="https://jspm-food-default-rtdb.firebaseio.com"></div>
+      <div class="form-group"><label>Project ID</label><input type="text" id="cfg-projectId" placeholder="jspm-food"></div>
+      <div class="form-group"><label>Storage Bucket</label><input type="text" id="cfg-storageBucket" placeholder="jspm-food.appspot.com"></div>
+      <div class="form-group"><label>Messaging Sender ID</label><input type="text" id="cfg-messagingSenderId" placeholder="123456789"></div>
+      <div class="form-group"><label>App ID</label><input type="text" id="cfg-appId" placeholder="1:123:web:abc123"></div>
+      <button class="btn-primary" onclick="saveFirebaseConfig()">🔥 Connect Firebase →</button>
+      <button class="btn-secondary" onclick="showScreen('screen-landing')" style="margin-top:10px">← Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCREEN: STUDENT LOGIN ═══ -->
+<div class="screen" id="screen-student-login">
+  <div class="login-hero">
+    <button class="back-btn" style="margin-bottom:16px" onclick="showScreen('screen-landing')">←</button>
+    <h2>Student Login</h2>
+    <p>Enter your details to start ordering</p>
+  </div>
+  <div class="login-form">
+    <div class="form-group"><label>Full Name</label><input type="text" id="studentName" placeholder="Rahul Sharma"></div>
+    <div class="form-group"><label>PRN / Roll Number</label><input type="text" id="studentPRN" placeholder="2021BTCS0123"></div>
+    <div class="form-group"><label>Department</label>
+      <select id="studentDept">
+        <option>Computer Engineering</option>
+        <option>Mechanical Engineering</option>
+        <option>Civil Engineering</option>
+        <option>Electronics & Telecom</option>
+        <option>Information Technology</option>
+        <option>Electrical Engineering</option>
+        <option>AI & Data Science</option>
+      </select>
+    </div>
+    <button class="btn-primary" onclick="studentLogin()">Enter Campus Portal →</button>
+  </div>
+</div>
+
+<!-- ═══ SCREEN: AREA SELECTION ═══ -->
+<div class="screen" id="screen-area">
+  <div style="background:linear-gradient(135deg,var(--navy),var(--navy2));padding:28px 20px">
+    <div style="background:rgba(255,255,255,0.08);border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:8px;margin-bottom:16px">
+      <span>👋</span>
+      <span style="color:rgba(255,255,255,0.7);font-size:14px">Welcome, <strong id="areaStudentName" style="color:#fff">Student</strong></span>
+      <span style="margin-left:auto;color:rgba(255,255,255,0.4);font-size:12px" id="areaPRN"></span>
+    </div>
+    <h2 style="color:#fff;font-size:26px;font-weight:800">Where do you want to eat?</h2>
+    <p style="color:rgba(255,255,255,0.5);font-size:14px;margin-top:6px">Select dining area</p>
+  </div>
+  <div class="area-cards">
+    <div class="area-card" onclick="showScreen('screen-food-court')">
+      <div class="area-emoji">🏪</div>
+      <h3>Food Court</h3>
+      <p>5 shops · Eggs, Chaat, Juice, Paratha & more</p>
+      <span class="area-tag">5 Shops</span>
+    </div>
+    <div class="area-card" onclick="loadCafeteriaMenu()">
+      <div class="area-emoji">🍽️</div>
+      <h3>Cafeteria</h3>
+      <p>Biryani, Dosa, Paratha & more</p>
+      <span class="area-tag cafe">8 Items</span>
+    </div>
+  </div>
+  <div style="padding:0 20px">
+    <div style="background:var(--card);border-radius:var(--radius);padding:16px 20px;box-shadow:var(--shadow)">
+      <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px">📢 How it works</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.8">
+        1. Select area & shop → 2. Choose food item<br>
+        3. Pay via UPI QR → 4. Get <strong style="color:var(--orange)">4-letter code</strong><br>
+        5. Show code at counter → Collect your food 🎉
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCREEN: FOOD COURT ═══ -->
+<div class="screen" id="screen-food-court">
+  <div class="top-bar">
+    <button class="back-btn" onclick="showScreen('screen-area')">←</button>
+    <div><div class="top-bar-title">🏪 Food Court</div><div class="top-bar-sub">Select a shop</div></div>
+  </div>
+  <div class="shop-grid">
+    <div class="shop-card" onclick="loadMenu('friendly-egg')"><div class="shop-emoji-box" style="background:#fef3c7">🥚</div><div class="shop-info"><h3>Friendly Egg 🍳</h3><p>Egg Bhurji, Omelette, Egg Fried Rice & more</p><span class="shop-badge" style="background:#fef3c7;color:#92400e">6 Items · ₹30–₹80</span></div><span class="shop-arrow">›</span></div>
+    <div class="shop-card" onclick="loadMenu('chaat')"><div class="shop-emoji-box" style="background:#fee2e2">🌶️</div><div class="shop-info"><h3>Chaat Center</h3><p>Pani Puri, Bhel, Sev Puri, Dahi Puri & more</p><span class="shop-badge" style="background:#fee2e2;color:#991b1b">6 Items · ₹40–₹65</span></div><span class="shop-arrow">›</span></div>
+    <div class="shop-card" onclick="loadMenu('juice')"><div class="shop-emoji-box" style="background:#dcfce7">🥤</div><div class="shop-info"><h3>Juice Center</h3><p>Fresh Lime, Mango Shake, Lassi, Cold Coffee</p><span class="shop-badge" style="background:#dcfce7;color:#166534">6 Items · ₹30–₹60</span></div><span class="shop-arrow">›</span></div>
+    <div class="shop-card" onclick="loadMenu('paratha')"><div class="shop-emoji-box" style="background:#fce7f3">🫓</div><div class="shop-info"><h3>Paratha Center</h3><p>Aloo, Paneer, Gobi, Mixed Veg Paratha</p><span class="shop-badge" style="background:#fce7f3;color:#9d174d">5 Items · ₹30–₹70</span></div><span class="shop-arrow">›</span></div>
+    <div class="shop-card" onclick="loadMenu('nashta')"><div class="shop-emoji-box" style="background:#ede9fe">☕</div><div class="shop-info"><h3>Nashta Center</h3><p>Poha, Upma, Misal Pav, Samosa & more</p><span class="shop-badge" style="background:#ede9fe;color:#5b21b6">6 Items · ₹25–₹50</span></div><span class="shop-arrow">›</span></div>
+  </div>
+</div>
+
+<!-- ═══ SCREEN: MENU ═══ -->
+<div class="screen" id="screen-menu">
+  <div class="top-bar"><button class="back-btn" onclick="showScreen('screen-food-court')">←</button><div><div class="top-bar-title" id="menuTitle">Menu</div><div class="top-bar-sub" id="menuSub">Food Court</div></div></div>
+  <div class="menu-grid" id="menuGrid"></div>
+</div>
+
+<!-- ═══ SCREEN: CAFETERIA MENU ═══ -->
+<div class="screen" id="screen-cafeteria-menu">
+  <div class="top-bar" style="background:linear-gradient(135deg,var(--purple),#6d28d9)"><button class="back-btn" onclick="showScreen('screen-area')">←</button><div><div class="top-bar-title">🍽️ Cafeteria Menu</div><div class="top-bar-sub">JSPM RSCOE Central Cafeteria</div></div></div>
+  <div class="menu-grid" id="cafeMenuGrid"></div>
+</div>
+
+<!-- ═══ SCREEN: PAYMENT ═══ -->
+<div class="screen" id="screen-payment">
+  <div class="top-bar"><button class="back-btn" onclick="cancelPayment()">←</button><div><div class="top-bar-title">💳 Payment</div><div class="top-bar-sub">Scan & Pay via UPI</div></div></div>
+  <div class="payment-screen">
+    <div class="order-summary">
+      <h3>Order Summary</h3>
+      <div class="order-row"><span id="payItemName">-</span><span id="payItemPrice">₹0</span></div>
+      <div class="order-row"><span>Platform Fee</span><span>₹0</span></div>
+      <div class="order-row total"><span>Total Payable</span><span id="payTotal">₹0</span></div>
+    </div>
+    <div class="qr-box">
+      <h3>Scan QR to Pay</h3>
+      <p>Use GPay · PhonePe · Paytm · Any UPI App</p>
+      <img class="qr-img" id="payQRImg" src="" alt="UPI QR">
+      <div><span class="upi-id-box" id="payUPIId">loading...</span></div>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px">JSPM RSCOE Campus Food Portal</div>
+    </div>
+    <button class="btn-paid" id="paidBtn" onclick="confirmPayment()">✅ I Have Paid — Confirm Order</button>
+    <div style="text-align:center;color:var(--muted);font-size:13px;margin-top:12px">⚠️ Only confirm after successful payment</div>
+  </div>
+</div>
+
+<!-- ═══ SCREEN: ORDER CODE ═══ -->
+<div class="screen" id="screen-order-code">
+  <div class="code-screen">
+    <div class="code-success-icon">🎉</div>
+    <h2>Order Placed!</h2>
+    <p>Your order is being prepared. Show this code at the counter.</p>
+    <div class="order-code-display">
+      <div class="code-label">Your Order Code</div>
+      <div class="code-value" id="displayCode">----</div>
+      <div class="code-shop" id="displayShop">Shop</div>
+    </div>
+    <div class="firebase-badge">🔴 LIVE — Shopkeeper notified instantly via Firebase!</div>
+    <div class="code-note">Go to <strong id="displayShopNote">the shop</strong> and tell the code <strong id="displayCode2" style="font-family:'Syne',sans-serif;font-size:18px;color:var(--orange)">----</strong>. Your food will be ready!</div>
+    <button class="btn-done" onclick="orderDone()">🏠 Order More</button>
+  </div>
+</div>
+
+<!-- ═══ SCREEN: SHOP LOGIN ═══ -->
+<div class="screen" id="screen-shop-login">
+  <div class="login-hero" style="background:linear-gradient(135deg,#15803d,#16a34a)">
+    <button class="back-btn" style="background:rgba(255,255,255,0.2);margin-bottom:16px" onclick="showScreen('screen-landing')">←</button>
+    <h2>Food Court Login</h2>
+    <p>Real-time order management</p>
+  </div>
+  <div class="login-form">
+    <div class="form-group"><label>Select Your Shop</label>
+      <select id="shopSelect">
+        <option value="friendly-egg">🥚 Friendly Egg</option>
+        <option value="chaat">🌶️ Chaat Center</option>
+        <option value="juice">🥤 Juice Center</option>
+        <option value="paratha">🫓 Paratha Center</option>
+        <option value="nashta">☕ Nashta Center</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Password</label><input type="password" id="shopPass" placeholder="Enter password">
+      <div style="font-size:12px;color:var(--muted);margin-top:6px">Demo password: <strong>shop123</strong></div>
+    </div>
+    <button class="btn-primary" style="background:linear-gradient(135deg,#16a34a,#22c55e);box-shadow:0 4px 20px rgba(22,163,74,0.3)" onclick="shopLogin()">Login to Dashboard →</button>
+  </div>
+</div>
+
+<!-- ═══ SCREEN: SHOP DASHBOARD ═══ -->
+<div class="screen" id="screen-shop-dashboard">
+  <div class="top-bar" style="background:linear-gradient(135deg,#15803d,#16a34a)">
+    <div style="flex:1"><div class="top-bar-title" id="shopDashTitle">Shop Dashboard</div><div style="display:flex;align-items:center;gap:8px;margin-top:3px"><span class="top-bar-sub">Food Court</span><span class="live-dot" style="margin-left:8px">LIVE</span></div></div>
+    <button onclick="shopLogout()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;padding:8px 14px;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer">Logout</button>
+  </div>
+  <div class="verify-section">
+    <h3>🔍 Verify Student Code</h3>
+    <div class="verify-row">
+      <input type="text" class="verify-input" id="shopVerifyInput" maxlength="4" placeholder="----" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
+      <button class="btn-verify" onclick="verifyCode('shop')">Verify ✓</button>
+    </div>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-btn active" id="shopTab-pending" onclick="switchShopTab('pending')">⏳ New <span class="notif-badge" id="shopPendingBadge" style="display:none">0</span></button>
+    <button class="tab-btn" id="shopTab-preparing" onclick="switchShopTab('preparing')">🔵 Cooking</button>
+    <button class="tab-btn" id="shopTab-verified" onclick="switchShopTab('verified')">✅ Done</button>
+  </div>
+  <div class="orders-list" id="shopOrdersList"></div>
+</div>
+
+<!-- ═══ SCREEN: CAFE LOGIN ═══ -->
+<div class="screen" id="screen-cafe-login">
+  <div class="login-hero" style="background:linear-gradient(135deg,#6d28d9,var(--purple))">
+    <button class="back-btn" style="background:rgba(255,255,255,0.2);margin-bottom:16px" onclick="showScreen('screen-landing')">←</button>
+    <h2>Cafeteria Login</h2>
+    <p>Central Kitchen Order Portal</p>
+  </div>
+  <div class="login-form">
+    <div class="form-group"><label>Chef / Chief Name</label><input type="text" id="cafeName" placeholder="Chef Ramesh"></div>
+    <div class="form-group"><label>Password</label><input type="password" id="cafePass" placeholder="Enter password">
+      <div style="font-size:12px;color:var(--muted);margin-top:6px">Demo password: <strong>cafe123</strong></div>
+    </div>
+    <button class="btn-primary" style="background:linear-gradient(135deg,var(--purple),#6d28d9);box-shadow:0 4px 20px rgba(124,58,237,0.3)" onclick="cafeLogin()">Login to Kitchen →</button>
+  </div>
+</div>
+
+<!-- ═══ SCREEN: CAFE DASHBOARD ═══ -->
+<div class="screen" id="screen-cafe-dashboard">
+  <div class="top-bar" style="background:linear-gradient(135deg,#6d28d9,var(--purple))">
+    <div style="flex:1"><div class="top-bar-title">🍽️ Cafeteria Kitchen</div><div style="display:flex;align-items:center;gap:8px;margin-top:3px"><span class="top-bar-sub">JSPM RSCOE</span><span class="live-dot" style="margin-left:8px">LIVE</span></div></div>
+    <button onclick="cafeLogout()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;padding:8px 14px;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer">Logout</button>
+  </div>
+  <div class="verify-section" style="border-color:#ede9fe">
+    <h3>🔍 Verify Student Code</h3>
+    <div class="verify-row">
+      <input type="text" class="verify-input" id="cafeVerifyInput" maxlength="4" placeholder="----" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
+      <button class="btn-verify" style="background:var(--purple)" onclick="verifyCode('cafe')">Verify ✓</button>
+    </div>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-btn active" id="cafeTab-pending" onclick="switchCafeTab('pending')">⏳ New <span class="notif-badge" id="cafePendingBadge" style="display:none">0</span></button>
+    <button class="tab-btn" id="cafeTab-preparing" onclick="switchCafeTab('preparing')">🔵 Cooking</button>
+    <button class="tab-btn" id="cafeTab-verified" onclick="switchCafeTab('verified')">✅ Served</button>
+  </div>
+  <div class="orders-list" id="cafeOrdersList"></div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  🔥 FIREBASE CONFIG
+//  Replace with YOUR config from Firebase Console
+// ══════════════════════════════════════════════════════
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyC65y8O1DG9XJPhv7SM_U3LVUKfL-Et4bU",
+  authDomain: "jspm-food-b6328.firebaseapp.com",
+  databaseURL: "https://jspm-food-b6328-default-rtdb.firebaseio.com",
+  projectId: "jspm-food-b6328",
+  storageBucket: "jspm-food-b6328.firebasestorage.app",
+  messagingSenderId: "921361788744",
+  appId: "1:921361788744:web:0ad274beee6a026d4b4d7d"
+};
+// ══════════════════════════════════════════════════════
+//  💳 UPI ID — Replace with your college UPI ID
+const UPI_ID = 'jspmrscoe@upi';
+const UPI_NAME = 'JSPM+RSCOE+Food+Portal';
+// ══════════════════════════════════════════════════════
+
+// STATE
+let db = null;
+let currentStudent = null;
+let currentOrder = null;
+let currentShopId = null;
+let shopOrderListener = null;
+let cafeOrderListener = null;
+let activeShopTab = 'pending';
+let activeCafeTab = 'pending';
+let firebaseReady = false;
+
+// ──────────────────────────────────────────────────────
+//  FIREBASE INIT
+// ──────────────────────────────────────────────────────
+function initFirebase() {
+  try {
+    if (FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY') {
+      // Check localStorage for saved config
+      const saved = localStorage.getItem('jspm_fb_config');
+      if (saved) {
+        const cfg = JSON.parse(saved);
+        startFirebase(cfg);
+      } else {
+        setFbStatus('⚠️ Firebase not configured — Demo mode', true);
+        setFbIndicator(false, 'Not configured — tap here to setup');
+        document.getElementById('fbIndicator').onclick = () => showScreen('screen-firebase-setup');
+        firebaseReady = false;
+      }
+      return;
+    }
+    startFirebase(FIREBASE_CONFIG);
+  } catch(e) {
+    setFbStatus('❌ Firebase error: '+e.message, true);
+    firebaseReady = false;
+  }
+}
+
+function startFirebase(config) {
+  try {
+    if (firebase.apps.length === 0) {
+      firebase.initializeApp(config);
+    }
+    db = firebase.database();
+    db.ref('.info/connected').on('value', snap => {
+      if (snap.val()) {
+        firebaseReady = true;
+        setFbIndicator(true, 'Connected — Real-time orders active');
+        setFbStatus('🔥 Firebase Connected!', false);
+        setTimeout(() => document.getElementById('fbStatus').classList.remove('show'), 2000);
+      } else {
+        firebaseReady = false;
+        setFbIndicator(false, 'Reconnecting...');
+      }
+    });
+  } catch(e) {
+    setFbStatus('❌ '+e.message, true);
+    firebaseReady = false;
+  }
+}
+
+function saveFirebaseConfig() {
+  const cfg = {
+    apiKey: document.getElementById('cfg-apiKey').value.trim(),
+    authDomain: document.getElementById('cfg-authDomain').value.trim(),
+    databaseURL: document.getElementById('cfg-databaseURL').value.trim(),
+    projectId: document.getElementById('cfg-projectId').value.trim(),
+    storageBucket: document.getElementById('cfg-storageBucket').value.trim(),
+    messagingSenderId: document.getElementById('cfg-messagingSenderId').value.trim(),
+    appId: document.getElementById('cfg-appId').value.trim(),
+  };
+  if (!cfg.apiKey || !cfg.databaseURL) { showToast('⚠️ Fill API Key and Database URL'); return; }
+  localStorage.setItem('jspm_fb_config', JSON.stringify(cfg));
+  location.reload();
+}
+
+function setFbStatus(msg, isError) {
+  const el = document.getElementById('fbStatus');
+  el.textContent = msg;
+  el.className = 'fb-status show' + (isError ? ' error' : '');
+}
+function setFbIndicator(connected, text) {
+  document.getElementById('fbDot').className = 'fb-dot' + (connected ? ' connected' : '');
+  document.getElementById('fbIndicatorText').textContent = text;
+}
+
+// ──────────────────────────────────────────────────────
+//  MENUS DATA
+// ──────────────────────────────────────────────────────
+const MENUS = {
+  'friendly-egg': { name:'🥚 Friendly Egg', sub:'Food Court · Egg Specialties', items:[
+    {e:'🥚',n:'Egg Bhurji',d:'Spicy scrambled eggs with onion & tomato',p:60},
+    {e:'🍳',n:'Omelette',d:'Plain / Masala omelette',p:40},
+    {e:'🥪',n:'Egg Sandwich',d:'Toasted bread with egg & veggies',p:50},
+    {e:'🍚',n:'Egg Fried Rice',d:'Wok-tossed rice with egg & veggies',p:80},
+    {e:'🌯',n:'Egg Roll',d:'Egg wrapped in paratha with chutney',p:60},
+    {e:'🥛',n:'Boiled Eggs (2)',d:'Hard boiled with salt & pepper',p:30},
+  ]},
+  'chaat': { name:'🌶️ Chaat Center', sub:'Food Court · Indian Street Food', items:[
+    {e:'🫧',n:'Pani Puri',d:'Crispy puris with tangy spiced water (6 pcs)',p:40},
+    {e:'🥗',n:'Bhel Puri',d:'Puffed rice with veggies & chutneys',p:50},
+    {e:'🫙',n:'Sev Puri',d:'Crispy flat puris with sev & chutney',p:45},
+    {e:'🍥',n:'Dahi Puri',d:'Puris filled with yogurt & sweet chutney',p:55},
+    {e:'🥔',n:'Aloo Tikki Chaat',d:'Potato patties with chole & toppings',p:60},
+    {e:'🫘',n:'Ragda Pattice',d:'Potato patty with white peas curry',p:65},
+  ]},
+  'juice': { name:'🥤 Juice Center', sub:'Food Court · Fresh Beverages', items:[
+    {e:'🍋',n:'Fresh Lime Juice',d:'Sweet / Salty / Masala',p:30},
+    {e:'🥭',n:'Mango Shake',d:'Fresh mango blended with milk',p:60},
+    {e:'🎋',n:'Sugarcane Juice',d:'Fresh pressed with ginger & lemon',p:30},
+    {e:'🍹',n:'Mixed Fruit Juice',d:'Seasonal fruits blended fresh',p:50},
+    {e:'☕',n:'Cold Coffee',d:'Chilled coffee with ice cream',p:60},
+    {e:'🥛',n:'Sweet Lassi',d:'Thick creamy yogurt drink',p:40},
+  ]},
+  'paratha': { name:'🫓 Paratha Center', sub:'Food Court · Fresh Parathas', items:[
+    {e:'🥔',n:'Aloo Paratha',d:'Potato stuffed paratha with butter & curd',p:50},
+    {e:'🧀',n:'Paneer Paratha',d:'Cottage cheese paratha with pickle',p:70},
+    {e:'🥦',n:'Gobi Paratha',d:'Cauliflower stuffed paratha',p:55},
+    {e:'🥗',n:'Mixed Veg Paratha',d:'Assorted veggies stuffed paratha',p:60},
+    {e:'🫓',n:'Plain Paratha',d:'Simple layered paratha with ghee',p:30},
+  ]},
+  'nashta': { name:'☕ Nashta Center', sub:'Food Court · Morning Snacks', items:[
+    {e:'🍽️',n:'Poha',d:'Flattened rice with peanuts & curry leaves',p:30},
+    {e:'🥣',n:'Upma',d:'Semolina with vegetables & spices',p:30},
+    {e:'🥘',n:'Misal Pav',d:'Spicy sprout curry with pav bread',p:50},
+    {e:'🥪',n:'Veg Sandwich',d:'Grilled with veggies, butter & chutney',p:45},
+    {e:'🍞',n:'Bread Butter',d:'Fresh bread with butter & jam',p:25},
+    {e:'🥟',n:'Samosa (2 pcs)',d:'Crispy potato stuffed samosas',p:30},
+  ]},
+};
+
+const CAFE_ITEMS = [
+  {e:'🍛',n:'Veg Biryani',d:'Fragrant basmati rice with mixed vegetables & spices',p:100},
+  {e:'🍗',n:'Chicken Biryani',d:'Dum cooked chicken biryani with raita',p:130},
+  {e:'🧀',n:'Paneer Biryani',d:'Cottage cheese biryani with saffron',p:120},
+  {e:'🥞',n:'Masala Dosa',d:'Crispy dosa with potato filling, sambar & chutney',p:60},
+  {e:'🍩',n:'Vada Sambar',d:'Crispy medu vada with hot sambar & coconut chutney',p:50},
+  {e:'🫓',n:'Paneer Paratha',d:'Paneer stuffed paratha with butter & curd',p:70},
+  {e:'🥔',n:'Aalu Paratha',d:'Aalu stuffed paratha with pickle & butter',p:50},
+  {e:'🫙',n:'Sabudana Khichdi',d:'Sago pearls with peanuts, potato & spices',p:60},
+];
+
+// ──────────────────────────────────────────────────────
+//  NAVIGATION
+// ──────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3200);
+}
+function closeModal() { document.getElementById('itemModal').classList.remove('open'); }
+
+// ──────────────────────────────────────────────────────
+//  STUDENT
+// ──────────────────────────────────────────────────────
+function studentLogin() {
+  const name = document.getElementById('studentName').value.trim();
+  const prn = document.getElementById('studentPRN').value.trim();
+  if (!name || !prn) { showToast('⚠️ Please fill your name and PRN'); return; }
+  currentStudent = { name, prn, dept: document.getElementById('studentDept').value };
+  document.getElementById('areaStudentName').textContent = name;
+  document.getElementById('areaPRN').textContent = prn;
+  showScreen('screen-area');
+}
+
+function loadMenu(shopId) {
+  currentShopId = shopId;
+  const menu = MENUS[shopId];
+  document.getElementById('menuTitle').textContent = menu.name;
+  document.getElementById('menuSub').textContent = menu.sub;
+  const grid = document.getElementById('menuGrid');
+  grid.innerHTML = '';
+  menu.items.forEach((item, i) => {
+    grid.innerHTML += `
+    <div class="menu-item">
+      <span class="menu-item-emoji">${item.e}</span>
+      <div class="menu-item-info">
+        <div class="menu-item-name">${item.n}</div>
+        <div class="menu-item-desc">${item.d}</div>
+        <div class="menu-item-price">₹${item.p}</div>
+      </div>
+      <button class="btn-order" onclick="openModal('food-court','${shopId}',${i})">Order</button>
+    </div>`;
+  });
+  showScreen('screen-menu');
+}
+
+function loadCafeteriaMenu() {
+  const grid = document.getElementById('cafeMenuGrid');
+  grid.innerHTML = '';
+  CAFE_ITEMS.forEach((item, i) => {
+    grid.innerHTML += `
+    <div class="menu-item">
+      <span class="menu-item-emoji">${item.e}</span>
+      <div class="menu-item-info">
+        <div class="menu-item-name">${item.n}</div>
+        <div class="menu-item-desc">${item.d}</div>
+        <div class="menu-item-price">₹${item.p}</div>
+      </div>
+      <button class="btn-order" style="background:var(--purple)" onclick="openModal('cafeteria','cafeteria',${i})">Order</button>
+    </div>`;
+  });
+  showScreen('screen-cafeteria-menu');
+}
+
+function openModal(area, shopId, idx) {
+  const item = area === 'cafeteria' ? CAFE_ITEMS[idx] : MENUS[shopId].items[idx];
+  const shopName = area === 'cafeteria' ? '🍽️ Cafeteria' : MENUS[shopId].name;
+  currentOrder = { area, shopId, idx, item, shopName };
+  document.getElementById('modalItemName').textContent = item.n;
+  document.getElementById('modalItemDesc').textContent = item.d;
+  document.getElementById('modalItemPrice').textContent = '₹' + item.p;
+  document.getElementById('modalItemShop').textContent = shopName;
+  document.getElementById('itemModal').classList.add('open');
+}
+
+// ──────────────────────────────────────────────────────
+//  PAYMENT
+// ──────────────────────────────────────────────────────
+function proceedToPayment() {
+  closeModal();
+  const item = currentOrder.item;
+  document.getElementById('payItemName').textContent = item.n;
+  document.getElementById('payItemPrice').textContent = '₹' + item.p;
+  document.getElementById('payTotal').textContent = '₹' + item.p;
+  // Real UPI QR
+  const upiStr = `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${item.p}&cu=INR&tn=${encodeURIComponent('JSPM RSCOE - ' + item.n)}`;
+  document.getElementById('payQRImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiStr)}&bgcolor=ffffff&color=0f1b3d&margin=12`;
+  document.getElementById('payUPIId').textContent = UPI_ID;
+  showScreen('screen-payment');
+}
+
+function cancelPayment() {
+  if (currentOrder?.area === 'cafeteria') showScreen('screen-cafeteria-menu');
+  else showScreen('screen-menu');
+}
+
+// ──────────────────────────────────────────────────────
+//  CONFIRM ORDER → FIREBASE
+// ──────────────────────────────────────────────────────
+async function confirmPayment() {
+  const btn = document.getElementById('paidBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Saving order...';
+  const code = generateCode();
+  const order = {
+    code,
+    area: currentOrder.area,
+    shopId: currentOrder.shopId,
+    shopName: currentOrder.shopName,
+    itemName: currentOrder.item.n,
+    itemEmoji: currentOrder.item.e,
+    itemPrice: currentOrder.item.p,
+    studentName: currentStudent.name,
+    studentPRN: currentStudent.prn,
+    studentDept: currentStudent.dept,
+    status: 'pending',
+    timestamp: Date.now(),
+    time: new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'})
+  };
+
+  try {
+    if (firebaseReady && db) {
+      const path = `orders/${currentOrder.area}/${currentOrder.shopId}`;
+      await db.ref(path).push(order);
+      showToast('🔥 Order sent to shop in real-time!');
+    } else {
+      // Fallback to localStorage for demo
+      const orders = JSON.parse(localStorage.getItem('jspm_demo_orders') || '[]');
+      orders.unshift({...order, id: Date.now()});
+      localStorage.setItem('jspm_demo_orders', JSON.stringify(orders));
+      showToast('📱 Order placed (Demo mode — no Firebase)');
+    }
+    // Show code screen
+    document.getElementById('displayCode').textContent = code;
+    document.getElementById('displayCode2').textContent = code;
+    document.getElementById('displayShop').textContent = currentOrder.shopName;
+    document.getElementById('displayShopNote').textContent = currentOrder.shopName;
+    showScreen('screen-order-code');
+  } catch(e) {
+    showToast('❌ Error: ' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = '✅ I Have Paid — Confirm Order';
+  }
+}
+
+function orderDone() { currentOrder = null; showScreen('screen-area'); }
+
+// ──────────────────────────────────────────────────────
+//  SHOPKEEPER
+// ──────────────────────────────────────────────────────
+function shopLogin() {
+  if (document.getElementById('shopPass').value !== 'shop123') { showToast('❌ Wrong password. Use: shop123'); return; }
+  const shopId = document.getElementById('shopSelect').value;
+  currentShopId = shopId;
+  const names = {'friendly-egg':'🥚 Friendly Egg','chaat':'🌶️ Chaat Center','juice':'🥤 Juice Center','paratha':'🫓 Paratha Center','nashta':'☕ Nashta Center'};
+  document.getElementById('shopDashTitle').textContent = names[shopId];
+  showScreen('screen-shop-dashboard');
+  listenShopOrders(shopId);
+}
+
+function shopLogout() {
+  if (shopOrderListener) shopOrderListener();
+  showScreen('screen-landing');
+}
+
+let shopOrders = {};
+function listenShopOrders(shopId) {
+  if (!firebaseReady || !db) { loadDemoShopOrders(shopId); return; }
+  const ref = db.ref(`orders/food-court/${shopId}`);
+  ref.on('value', snap => {
+    shopOrders = {};
+    snap.forEach(child => { shopOrders[child.key] = child.val(); });
+    renderShopOrders();
+    // Sound/visual notification for new pending
+    const pending = Object.values(shopOrders).filter(o => o.status === 'pending').length;
+    if (pending > 0) ringNotification();
+  });
+}
+
+function loadDemoShopOrders(shopId) {
+  const all = JSON.parse(localStorage.getItem('jspm_demo_orders') || '[]');
+  shopOrders = {};
+  all.filter(o => o.shopId === shopId && o.area === 'food-court').forEach((o, i) => { shopOrders[i] = o; });
+  renderShopOrders();
+}
+
+function renderShopOrders() {
+  const list = document.getElementById('shopOrdersList');
+  const filtered = Object.entries(shopOrders).filter(([k,o]) => o.status === activeShopTab);
+  const pending = Object.values(shopOrders).filter(o => o.status === 'pending').length;
+  const badge = document.getElementById('shopPendingBadge');
+  badge.textContent = pending;
+  badge.style.display = pending > 0 ? 'inline-flex' : 'none';
+  if (!filtered.length) {
+    list.innerHTML = `<div class="orders-empty"><div class="empty-icon">${activeShopTab==='pending'?'📭':activeShopTab==='preparing'?'👨‍🍳':'✅'}</div><p>No ${activeShopTab} orders</p></div>`;
+    return;
+  }
+  list.innerHTML = '';
+  filtered.sort((a,b) => (b[1].timestamp||0)-(a[1].timestamp||0)).forEach(([key, order]) => {
+    list.innerHTML += buildOrderCard(key, order, 'shop');
+  });
+}
+
+function switchShopTab(tab) {
+  activeShopTab = tab;
+  ['pending','preparing','verified'].forEach(t => document.getElementById(`shopTab-${t}`).classList.toggle('active', t === tab));
+  renderShopOrders();
+}
+
+// ──────────────────────────────────────────────────────
+//  CAFETERIA CHIEF
+// ──────────────────────────────────────────────────────
+function cafeLogin() {
+  const name = document.getElementById('cafeName').value.trim();
+  if (!name) { showToast('⚠️ Enter your name'); return; }
+  if (document.getElementById('cafePass').value !== 'cafe123') { showToast('❌ Wrong password. Use: cafe123'); return; }
+  showScreen('screen-cafe-dashboard');
+  listenCafeOrders();
+}
+
+function cafeLogout() {
+  if (cafeOrderListener) cafeOrderListener();
+  showScreen('screen-landing');
+}
+
+let cafeOrders = {};
+function listenCafeOrders() {
+  if (!firebaseReady || !db) { loadDemoCafeOrders(); return; }
+  const ref = db.ref('orders/cafeteria/cafeteria');
+  ref.on('value', snap => {
+    cafeOrders = {};
+    snap.forEach(child => { cafeOrders[child.key] = child.val(); });
+    renderCafeOrders();
+    const pending = Object.values(cafeOrders).filter(o => o.status === 'pending').length;
+    if (pending > 0) ringNotification();
+  });
+}
+
+function loadDemoCafeOrders() {
+  const all = JSON.parse(localStorage.getItem('jspm_demo_orders') || '[]');
+  cafeOrders = {};
+  all.filter(o => o.area === 'cafeteria').forEach((o, i) => { cafeOrders[i] = o; });
+  renderCafeOrders();
+}
+
+function renderCafeOrders() {
+  const list = document.getElementById('cafeOrdersList');
+  const filtered = Object.entries(cafeOrders).filter(([k,o]) => o.status === activeCafeTab);
+  const pending = Object.values(cafeOrders).filter(o => o.status === 'pending').length;
+  const badge = document.getElementById('cafePendingBadge');
+  badge.textContent = pending;
+  badge.style.display = pending > 0 ? 'inline-flex' : 'none';
+  if (!filtered.length) {
+    list.innerHTML = `<div class="orders-empty"><div class="empty-icon">${activeCafeTab==='pending'?'📭':activeCafeTab==='preparing'?'🍳':'✅'}</div><p>No ${activeCafeTab} orders</p></div>`;
+    return;
+  }
+  list.innerHTML = '';
+  filtered.sort((a,b) => (b[1].timestamp||0)-(a[1].timestamp||0)).forEach(([key, order]) => {
+    list.innerHTML += buildOrderCard(key, order, 'cafe');
+  });
+}
+
+function switchCafeTab(tab) {
+  activeCafeTab = tab;
+  ['pending','preparing','verified'].forEach(t => document.getElementById(`cafeTab-${t}`).classList.toggle('active', t === tab));
+  renderCafeOrders();
+}
+
+// ──────────────────────────────────────────────────────
+//  BUILD ORDER CARD
+// ──────────────────────────────────────────────────────
+function buildOrderCard(key, order, role) {
+  const isCafe = role === 'cafe';
+  const cookBtn = order.status === 'pending' ? `<button class="btn-cook ${isCafe?'cafe':''}" onclick="updateStatus('${key}','${role}','preparing')">▶ Start Cooking</button>` : '';
+  return `
+  <div class="order-card ${order.status} ${isCafe?'cafeteria':''} new-order">
+    <div class="order-card-top">
+      <div>
+        <div class="order-item-name">${order.itemEmoji} ${order.itemName}</div>
+        <div class="order-student">👤 ${order.studentName} · ${order.studentPRN}</div>
+        <div class="order-time-text">🏫 ${order.studentDept||''} · 🕐 ${order.time}</div>
+      </div>
+      <div class="order-right">
+        <span class="order-price-badge">₹${order.itemPrice}</span>
+        <span class="status-chip ${order.status}">${order.status==='pending'?'⏳ New':order.status==='preparing'?'🔵 Cooking':'✅ Done'}</span>
+      </div>
+    </div>
+    <div class="order-code-row">
+      <span style="color:var(--muted);font-size:13px">Code:</span>
+      <span class="order-code-big">${order.code}</span>
+      <div class="action-btns">${cookBtn}</div>
+    </div>
+  </div>`;
+}
+
+// ──────────────────────────────────────────────────────
+//  UPDATE STATUS
+// ──────────────────────────────────────────────────────
+async function updateStatus(key, role, newStatus) {
+  try {
+    if (firebaseReady && db) {
+      const shopId = role === 'cafe' ? 'cafeteria' : currentShopId;
+      const area = role === 'cafe' ? 'cafeteria' : 'food-court';
+      await db.ref(`orders/${area}/${shopId}/${key}/status`).set(newStatus);
+    } else {
+      // Demo mode update
+      const orders = JSON.parse(localStorage.getItem('jspm_demo_orders') || '[]');
+      const idx = parseInt(key);
+      if (orders[idx]) orders[idx].status = newStatus;
+      localStorage.setItem('jspm_demo_orders', JSON.stringify(orders));
+      if (role === 'shop') { shopOrders[key] = {...shopOrders[key], status: newStatus}; renderShopOrders(); }
+      else { cafeOrders[key] = {...cafeOrders[key], status: newStatus}; renderCafeOrders(); }
+    }
+    showToast(newStatus === 'preparing' ? '👨‍🍳 Marked as Cooking!' : '✅ Done!');
+  } catch(e) { showToast('❌ Error: ' + e.message); }
+}
+
+// ──────────────────────────────────────────────────────
+//  VERIFY CODE
+// ──────────────────────────────────────────────────────
+async function verifyCode(role) {
+  const inputId = role === 'shop' ? 'shopVerifyInput' : 'cafeVerifyInput';
+  const code = document.getElementById(inputId).value.trim().toUpperCase();
+  if (!code || code.length !== 4) { showToast('⚠️ Enter full 4-character code'); return; }
+
+  let found = null, foundKey = null;
+  const orders = role === 'shop' ? shopOrders : cafeOrders;
+  for (const [key, order] of Object.entries(orders)) {
+    if (order.code === code && order.status !== 'verified') { found = order; foundKey = key; break; }
+  }
+
+  if (!found) { showToast('❌ Invalid code or already used'); return; }
+
+  await updateStatus(foundKey, role, 'verified');
+  document.getElementById(inputId).value = '';
+  // Show big verified popup
+  document.getElementById('verifiedPopDetail').textContent = `${found.itemEmoji} ${found.itemName} for ${found.studentName} (${found.studentPRN})`;
+  const pop = document.getElementById('verifiedPop');
+  pop.classList.add('show');
+  setTimeout(() => pop.classList.remove('show'), 4000);
+}
+
+// ──────────────────────────────────────────────────────
+//  HELPERS
+// ──────────────────────────────────────────────────────
+function generateCode() {
+  return Array.from({length:4}, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*33)]).join('');
+}
+
+function ringNotification() {
+  const ring = document.getElementById('notifRing');
+  ring.classList.add('show');
+  setTimeout(() => ring.classList.remove('show'), 2000);
+}
+
+// ──────────────────────────────────────────────────────
+//  BOOT
+// ──────────────────────────────────────────────────────
+window.addEventListener('load', initFirebase);
+</script>
+</body>
+</html>
